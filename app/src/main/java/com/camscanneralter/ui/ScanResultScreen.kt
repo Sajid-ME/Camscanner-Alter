@@ -1,27 +1,20 @@
 package com.camscanneralter.ui
 
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,10 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun ScanResultScreen(capturedImagePath: String?, onRetake: () -> Unit, onDone: () -> Unit) {
+    val context = LocalContext.current
     val selectedFilter = remember { mutableStateOf(ScanFilter.Original) }
     val scanBitmap = remember(capturedImagePath) {
         capturedImagePath?.let { BitmapFactory.decodeFile(it) }
@@ -92,6 +87,16 @@ fun ScanResultScreen(capturedImagePath: String?, onRetake: () -> Unit, onDone: (
                     Icon(Icons.Default.Refresh, contentDescription = "Retake")
                     Text(modifier = Modifier.padding(start = 8.dp), text = "Retake")
                 }
+                Button(
+                    onClick = {
+                        saveBitmapToGallery(context, scanBitmap, selectedFilter.value)
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Save to Gallery")
+                    Text(modifier = Modifier.padding(start = 8.dp), text = "Save")
+                }
                 Button(onClick = onDone, shape = RoundedCornerShape(20.dp), modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                     Icon(Icons.Default.Check, contentDescription = "Done")
                     Text(modifier = Modifier.padding(start = 8.dp), text = "Done")
@@ -101,13 +106,36 @@ fun ScanResultScreen(capturedImagePath: String?, onRetake: () -> Unit, onDone: (
     }
 }
 
+private fun saveBitmapToGallery(context: Context, bitmap: Bitmap, filter: ScanFilter) {
+    val filteredBitmap = applyFilter(bitmap, filter)
+    val displayName = "CamScannerAlter_${System.currentTimeMillis()}.jpg"
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CamScannerAlter")
+    }
+
+    val resolver = context.contentResolver
+    val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+    uri?.let {
+        resolver.openOutputStream(it).use { outputStream ->
+            if (outputStream != null) {
+                filteredBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+            }
+            Toast.makeText(context, "Saved to Gallery", Toast.LENGTH_SHORT).show()
+        }
+    } ?: Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+}
+
+
 @Composable
 private fun FilterButton(label: String, selected: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.size(100.dp, 44.dp),
-        colors = androidx.compose.material.ButtonDefaults.buttonColors(
+        colors = ButtonDefaults.buttonColors(
             backgroundColor = if (selected) MaterialTheme.colors.primary else MaterialTheme.colors.surface,
             contentColor = if (selected) MaterialTheme.colors.onPrimary else MaterialTheme.colors.onSurface
         )
