@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.CamscannerAlter" parent="android:Theme.Material.Light.DarkActionBar">
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:statusBarColor">#6200EE</item>
+        <item name="android:navigationBarColor">#6200EE</item>
+    </style>
+</resources>
